@@ -1,8 +1,12 @@
+import os
 import logging
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType
 from schema import COIN_SCHEMA
+from dotenv import load_dotenv
+
+load_dotenv('../config/.env')
 
 logging.basicConfig(
     level=logging.INFO,
@@ -11,10 +15,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-KAFKA_TOPIC = "crypto-prices"
-S3_CLEAN_PATH = "/tmp/crypto_clean/"
-S3_DLQ_PATH = "/tmp/crypto_dlq/"
+KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
+KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
+S3_CLEAN_PATH = f"s3a://{os.getenv('S3_BUCKET')}/crypto/clean/"
+S3_DLQ_PATH = f"s3a://{os.getenv('S3_BUCKET')}/crypto/dead_letter/"
 CHECKPOINT_PATH = "/tmp/spark_checkpoints/crypto"
 # We use /tmp for checkpoints locally — in production this would be S3
 # replace YOUR-BUCKET-NAME with your actual S3 bucket name
