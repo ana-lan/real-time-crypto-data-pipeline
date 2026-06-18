@@ -5,3 +5,4 @@ __pycache__/
 .venv/
 credentials/
 *.log
+glue-trust-policy.json
