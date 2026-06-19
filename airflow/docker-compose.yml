@@ -1,0 +1,97 @@
+services:
+
+  postgres:
+    image: postgres:13
+    container_name: airflow-postgres
+    # Airflow needs a database to store DAG run history, task states,
+    # logs, and connection metadata. PostgreSQL is the standard choice.
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+
+  airflow-init:
+    image: apache/airflow:2.8.1
+    container_name: airflow-init
+    # This is a one-time initialization container — it runs database
+    # migrations and creates the default admin user, then exits.
+    # It's not a long-running service.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      # LOAD_EXAMPLES false — Airflow ships with 20+ example DAGs
+      # that clutter the UI. We don't want those.
+    command: >-
+      bash -c "airflow db migrate &&
+      airflow users create --username admin --firstname admin --lastname admin --role Admin --email admin@example.com --password admin"
+    # Creates an admin user with username/password: admin/admin
+    # for logging into the Airflow UI at localhost:8080
+
+  airflow-webserver:
+    image: apache/airflow:2.8.1
+    container_name: airflow-webserver
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__WEBSERVER__SECRET_KEY: 'crypto-pipeline-secret'
+      # AWS credentials — passed through so Airflow tasks can call boto3
+      AWS_PROFILE: crypto-data-pipeline
+      AWS_SHARED_CREDENTIALS_FILE: /home/airflow/.aws/credentials
+    volumes:
+      - ./dags:/opt/airflow/dags
+      # Mounts your local dags/ folder into the container so Airflow
+      # can find and run your DAG files
+      - airflow-logs:/opt/airflow/logs
+      - ${HOME}/.aws:/home/airflow/.aws:ro
+      # Mounts your local AWS credentials file (read-only) into the
+      # container so boto3 inside Airflow can authenticate with AWS
+    ports:
+      - "8080:8080"
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    image: apache/airflow:2.8.1
+    container_name: airflow-scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AWS_PROFILE: crypto-data-pipeline
+      AWS_SHARED_CREDENTIALS_FILE: /home/airflow/.aws/credentials
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+      - ${HOME}/.aws:/home/airflow/.aws:ro
+    command: scheduler
+    # The scheduler watches your DAGs folder, detects when a DAG
+    # is due to run based on its schedule, and queues up task instances
+    # for the executor to pick up and run
+
+volumes:
+  postgres-db-volume:
+  airflow-logs:
