@@ -215,7 +215,7 @@ with DAG(
     dag_id='crypto_pipeline_orchestration',
     default_args=default_args,
     description='15-min refresh: crawl S3, repair Athena partitions, health check',
-    schedule_interval='*/15 * * * *',
+    schedule='@once',
     # Cron expression: every 15 minutes
     # */15 = "every 15th minute" (0, 15, 30, 45)
     start_date=datetime(2026, 6, 19),
