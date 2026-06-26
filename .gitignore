@@ -6,4 +6,5 @@ __pycache__/
 credentials/
 *.log
 glue-trust-policy.json
-redshift-trust-policy.json
+redshift-trust-policy.json.DS_Store
+.DS_Store
