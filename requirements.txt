@@ -1,0 +1,15 @@
+# Kafka
+confluent-kafka==1.9.2
+
+# Spark
+pyspark==3.5.1
+
+# AWS
+boto3==1.33.13
+
+# API & Utils
+requests==2.31.0
+python-dotenv==0.21.1
+
+# Airflow (install separately via Docker — see airflow/docker-compose.yml)
+# apache-airflow==2.7.0
